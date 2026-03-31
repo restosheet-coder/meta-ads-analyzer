@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta Ads Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', system-ui, sans-serif; }
+        .fade-in { animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .sortable:hover { cursor: pointer; color: #e2e8f0; }
+        tr:hover td { background: rgba(255,255,255,0.03); }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+
+<!-- ===== SETTINGS MODAL ===== -->
+<div id="settingsModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-slate-800 rounded-2xl p-6 w-full max-w-lg mx-4 shadow-2xl">
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
+                <i class="fas fa-gear text-white text-sm"></i>
+            </div>
+            <h2 class="text-lg font-bold">ตั้งค่า Meta Ads API</h2>
+        </div>
+
+        <div class="space-y-4">
+            <div>
+                <label class="text-xs text-slate-400 mb-1.5 block font-medium">Access Token <span class="text-red-400">*</span></label>
+                <input id="accessToken" type="password"
+                    placeholder="EAAxxxxxxxxxxxxx..."
+                    class="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                <p class="text-xs text-slate-500 mt-1">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    ดูวิธีขอ Token ด้านล่าง หรือใช้ Graph API Explorer
+                </p>
+            </div>
+
+            <div>
+                <label class="text-xs text-slate-400 mb-1.5 block font-medium">Ad Account ID <span class="text-red-400">*</span></label>
+                <input id="adAccountId" type="text"
+                    placeholder="1234567890 หรือ act_1234567890"
+                    class="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                <p class="text-xs text-slate-500 mt-1">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    ดูได้ใน URL ของ Ads Manager: act_XXXXXXXXXX
+                </p>
+            </div>
+
+            <div class="border-t border-slate-700 pt-4">
+                <p class="text-xs text-slate-400 font-medium mb-3">เกณฑ์ AI แนะนำ (ปรับตามธุรกิจของคุณ)</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs text-slate-400 mb-1 block">CTR "เพิ่มงบ" ≥ (%)</label>
+                        <input id="thresholdGood" type="number" value="2" step="0.1" min="0"
+                            class="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 mb-1 block">CTR "หยุด" < (%)</label>
+                        <input id="thresholdBad" type="number" value="0.5" step="0.1" min="0"
+                            class="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 transition">
+                    </div>
+                </div>
+                <div class="mt-2 text-xs text-slate-500 flex gap-3 flex-wrap">
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span>CTR ≥ เกณฑ์ → เพิ่มงบ</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>ตรงกลาง → ต่อ</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-yellow-500 inline-block"></span>ใกล้เกณฑ์ → รอดูก่อน</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span>CTR < เกณฑ์ → หยุด</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-3 mt-6">
+            <button onclick="saveSettings()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 font-semibold text-sm transition flex items-center justify-center gap-2">
+                <i class="fas fa-save"></i> บันทึก
+            </button>
+            <button onclick="closeSettings()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white rounded-xl py-2.5 font-semibold text-sm transition">
+                ยกเลิก
+            </button>
+        </div>
+
+        <!-- Help Section -->
+        <div class="mt-5 border-t border-slate-700 pt-4">
+            <button onclick="toggleHelp()" class="text-xs text-slate-400 hover:text-slate-200 transition flex items-center gap-1">
+                <i class="fas fa-chevron-right" id="helpIcon"></i>
+                วิธีขอ Access Token จาก Meta
+            </button>
+            <div id="helpContent" class="hidden mt-3 text-xs text-slate-400 space-y-1.5">
+                <p class="font-medium text-slate-300">ขั้นตอน (ใช้เวลา ~5 นาที):</p>
+                <p>1. ไปที่ <a href="https://developers.facebook.com/tools/explorer/" target="_blank" class="text-blue-400 underline">Graph API Explorer</a></p>
+                <p>2. เลือก App ของคุณ (หรือ Meta App ไหนก็ได้ที่เชื่อมกับ Ad Account)</p>
+                <p>3. คลิก "Generate Access Token"</p>
+                <p>4. เพิ่ม Permissions: <code class="bg-slate-700 px-1 rounded">ads_read</code></p>
+                <p>5. Copy token มาใส่ในช่องด้านบน</p>
+                <p class="text-yellow-400 mt-2"><i class="fas fa-warning mr-1"></i>Token นี้หมดอายุใน ~1 ชม. สำหรับใช้งานจริงให้ขอ Long-lived Token (60 วัน)</p>
+                <p>6. Ad Account ID → เปิด <a href="https://www.facebook.com/adsmanager" target="_blank" class="text-blue-400 underline">Ads Manager</a> → ดู URL จะเห็น act_XXXXXXXXXX</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div class="max-w-[1400px] mx-auto px-4 py-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-3">
+            <div class="w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center shadow-lg">
+                <i class="fab fa-meta text-white text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-white">Meta Ads Analyzer</h1>
+                <p class="text-xs text-slate-400">AI-powered ad performance dashboard</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <span id="lastUpdated" class="text-xs text-slate-500 hidden"></span>
+            <button onclick="openSettings()"
+                class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition">
+                <i class="fas fa-gear text-slate-400"></i> ตั้งค่า
+            </button>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 mb-5">
+        <div class="flex flex-wrap gap-3 items-end">
+            <div class="flex-1 min-w-36">
+                <label class="text-xs text-slate-400 mb-1 block">วันที่เริ่ม</label>
+                <input type="date" id="dateFrom"
+                    class="bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            </div>
+            <div class="flex-1 min-w-36">
+                <label class="text-xs text-slate-400 mb-1 block">วันที่สิ้นสุด</label>
+                <input type="date" id="dateTo"
+                    class="bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            </div>
+            <div class="flex gap-2 flex-wrap">
+                <button onclick="setDateRange(7)"
+                    class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-3 py-2 rounded-xl text-xs font-medium transition">7 วัน</button>
+                <button onclick="setDateRange(14)"
+                    class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-3 py-2 rounded-xl text-xs font-medium transition">14 วัน</button>
+                <button onclick="setDateRange(30)"
+                    class="bg-slate-700 hover:bg-slate-600 border border-slate-600 px-3 py-2 rounded-xl text-xs font-medium transition">30 วัน</button>
+            </div>
+            <button onclick="analyzeAds()" id="analyzeBtn"
+                class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-lg shadow-blue-900/30">
+                <i class="fas fa-chart-line"></i> วิเคราะห์
+            </button>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div id="kpiCards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
+        <!-- Placeholder cards -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 opacity-40">
+            <p class="text-xs text-slate-400 mb-1">Total Spend</p>
+            <p class="text-xl font-bold text-slate-300">—</p>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 opacity-40">
+            <p class="text-xs text-slate-400 mb-1">Impressions</p>
+            <p class="text-xl font-bold text-slate-300">—</p>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 opacity-40">
+            <p class="text-xs text-slate-400 mb-1">Clicks</p>
+            <p class="text-xl font-bold text-slate-300">—</p>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 opacity-40">
+            <p class="text-xs text-slate-400 mb-1">Avg CTR</p>
+            <p class="text-xl font-bold text-slate-300">—</p>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 opacity-40">
+            <p class="text-xs text-slate-400 mb-1">Avg CPC</p>
+            <p class="text-xl font-bold text-slate-300">—</p>
+        </div>
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 opacity-40">
+            <p class="text-xs text-slate-400 mb-1">Reach</p>
+            <p class="text-xl font-bold text-slate-300">—</p>
+        </div>
+    </div>
+
+    <!-- AI Summary Banner -->
+    <div id="aiSummary" class="hidden mb-5"></div>
+
+    <!-- Table -->
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-700 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <h2 class="font-semibold text-sm">รายการโฆษณา</h2>
+                <span id="adCount" class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full"></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <input id="searchInput" oninput="filterTable()" type="text" placeholder="ค้นหาชื่อโฆษณา..."
+                    class="hidden bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-48 transition">
+                <button onclick="toggleSearch()" class="text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-700 transition text-sm hidden" id="searchBtn">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button onclick="exportCSV()" class="text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-700 transition text-sm hidden" id="exportBtn" title="Export CSV">
+                    <i class="fas fa-download"></i>
+                </button>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm" id="mainTable">
+                <thead>
+                    <tr class="bg-slate-700/40">
+                        <th class="text-left px-5 py-3 text-xs text-slate-400 font-medium min-w-52">ชื่อโฆษณา</th>
+                        <th class="text-right px-4 py-3 text-xs text-slate-400 font-medium sortable" onclick="sortTable('spend')">
+                            Spend ฿ <i class="fas fa-sort ml-1 opacity-40"></i>
+                        </th>
+                        <th class="text-right px-4 py-3 text-xs text-slate-400 font-medium sortable" onclick="sortTable('impressions')">
+                            Impressions <i class="fas fa-sort ml-1 opacity-40"></i>
+                        </th>
+                        <th class="text-right px-4 py-3 text-xs text-slate-400 font-medium sortable" onclick="sortTable('clicks')">
+                            Clicks <i class="fas fa-sort ml-1 opacity-40"></i>
+                        </th>
+                        <th class="text-right px-4 py-3 text-xs text-slate-400 font-medium sortable" onclick="sortTable('ctr')">
+                            CTR % <i class="fas fa-sort ml-1 opacity-40"></i>
+                        </th>
+                        <th class="text-right px-4 py-3 text-xs text-slate-400 font-medium sortable" onclick="sortTable('cpc')">
+                            CPC ฿ <i class="fas fa-sort ml-1 opacity-40"></i>
+                        </th>
+                        <th class="text-right px-4 py-3 text-xs text-slate-400 font-medium sortable" onclick="sortTable('cpm')">
+                            CPM ฿ <i class="fas fa-sort ml-1 opacity-40"></i>
+                        </th>
+                        <th class="text-center px-4 py-3 text-xs text-slate-400 font-medium">สถานะ</th>
+                        <th class="text-center px-4 py-3 text-xs text-slate-400 font-medium">AI แนะนำ</th>
+                    </tr>
+                </thead>
+                <tbody id="adsTable">
+                    <tr>
+                        <td colspan="9" class="text-center py-20 text-slate-500">
+                            <i class="fab fa-meta text-5xl mb-4 block opacity-30"></i>
+                            <p class="font-medium mb-1">ยังไม่มีข้อมูล</p>
+                            <p class="text-xs">กรุณาตั้งค่า API Token แล้วกด "วิเคราะห์"</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-4 text-center text-xs text-slate-600">
+        Meta Ads Analyzer · ข้อมูลจาก Meta Marketing API v19.0 · Token เก็บใน Browser เท่านั้น
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+    <div class="bg-slate-800 border border-slate-600 text-white px-4 py-3 rounded-xl text-sm shadow-xl flex items-center gap-2">
+        <i id="toastIcon" class="fas fa-check-circle text-green-400"></i>
+        <span id="toastMsg"></span>
+    </div>
+</div>
+
+<script>
+    // ==============================
+    // STATE
+    // ==============================
+    let settings = {
+        token: localStorage.getItem('meta_token') || '',
+        accountId: localStorage.getItem('meta_account_id') || '',
+        thresholdGood: parseFloat(localStorage.getItem('threshold_good') || '2'),
+        thresholdBad: parseFloat(localStorage.getItem('threshold_bad') || '0.5'),
+    };
+
+    let allAds = [];
+    let sortField = 'spend';
+    let sortAsc = false;
+
+    // Init dates (last 7 days)
+    const today = new Date();
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 7);
+    document.getElementById('dateTo').value = today.toISOString().split('T')[0];
+    document.getElementById('dateFrom').value = sevenDaysAgo.toISOString().split('T')[0];
+
+    if (!settings.token) {
+        setTimeout(() => openSettings(), 600);
+    }
+
+    // ==============================
+    // SETTINGS
+    // ==============================
+    function openSettings() {
+        document.getElementById('accessToken').value = settings.token;
+        document.getElementById('adAccountId').value = settings.accountId;
+        document.getElementById('thresholdGood').value = settings.thresholdGood;
+        document.getElementById('thresholdBad').value = settings.thresholdBad;
+        document.getElementById('settingsModal').classList.remove('hidden');
+    }
+
+    function closeSettings() {
+        document.getElementById('settingsModal').classList.add('hidden');
+    }
+
+    function saveSettings() {
+        const token = document.getElementById('accessToken').value.trim();
+        const accountId = document.getElementById('adAccountId').value.trim();
+
+        if (!token || !accountId) {
+            showToast('กรุณากรอก Token และ Account ID', 'error');
+            return;
+        }
+
+        settings.token = token;
+        settings.accountId = accountId.startsWith('act_') ? accountId : 'act_' + accountId;
+        settings.thresholdGood = parseFloat(document.getElementById('thresholdGood').value);
+        settings.thresholdBad = parseFloat(document.getElementById('thresholdBad').value);
+
+        localStorage.setItem('meta_token', settings.token);
+        localStorage.setItem('meta_account_id', settings.accountId);
+        localStorage.setItem('threshold_good', settings.thresholdGood);
+        localStorage.setItem('threshold_bad', settings.thresholdBad);
+
+        closeSettings();
+        showToast('บันทึกการตั้งค่าแล้ว ✅');
+    }
+
+    function toggleHelp() {
+        const content = document.getElementById('helpContent');
+        const icon = document.getElementById('helpIcon');
+        content.classList.toggle('hidden');
+        icon.classList.toggle('fa-chevron-right');
+        icon.classList.toggle('fa-chevron-down');
+    }
+
+    // ==============================
+    // DATE
+    // ==============================
+    function setDateRange(days) {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(end.getDate() - days);
+        document.getElementById('dateTo').value = end.toISOString().split('T')[0];
+        document.getElementById('dateFrom').value = start.toISOString().split('T')[0];
+    }
+
+    // ==============================
+    // AI RECOMMENDATION
+    // ==============================
+    function getAIRecommendation(ctr, spend) {
+        const ctrNum = parseFloat(ctr || 0);
+        const mid = (settings.thresholdGood + settings.thresholdBad) / 2;
+
+        if (ctrNum >= settings.thresholdGood) {
+            return { label: '🚀 เพิ่มงบ', cls: 'bg-green-500/15 text-green-400 border border-green-500/30', rank: 4 };
+        } else if (ctrNum >= mid) {
+            return { label: '✅ ต่อ', cls: 'bg-blue-500/15 text-blue-400 border border-blue-500/30', rank: 3 };
+        } else if (ctrNum >= settings.thresholdBad) {
+            return { label: '⏳ รอดูก่อน', cls: 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30', rank: 2 };
+        } else {
+            return { label: '🛑 หยุด', cls: 'bg-red-500/15 text-red-400 border border-red-500/30', rank: 1 };
+        }
+    }
+
+    function getStatusBadge(status) {
+        if (status === 'ACTIVE') return '<span class="px-2 py-0.5 rounded-full text-xs bg-green-500/15 text-green-400 border border-green-500/30">● กำลังแสดง</span>';
+        if (status === 'PAUSED') return '<span class="px-2 py-0.5 rounded-full text-xs bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">⏸ หยุดชั่วคราว</span>';
+        if (status === 'ARCHIVED') return '<span class="px-2 py-0.5 rounded-full text-xs bg-slate-500/15 text-slate-400 border border-slate-500/30">📦 เก็บถาวร</span>';
+        return `<span class="px-2 py-0.5 rounded-full text-xs bg-slate-600/40 text-slate-400">${status}</span>`;
+    }
+
+    function fmt(n, decimals = 2) {
+        return parseFloat(n || 0).toLocaleString('th-TH', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals
+        });
+    }
+
+    function fmtInt(n) {
+        return parseInt(n || 0).toLocaleString('th-TH');
+    }
+
+    // ==============================
+    // FETCH META API
+    // ==============================
+    async function analyzeAds() {
+        if (!settings.token || !settings.accountId) {
+            openSettings();
+            return;
+        }
+
+        const btn = document.getElementById('analyzeBtn');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังโหลด...';
+        btn.disabled = true;
+        btn.classList.add('opacity-70');
+
+        const dateFrom = document.getElementById('dateFrom').value;
+        const dateTo = document.getElementById('dateTo').value;
+
+        try {
+            const timeRange = JSON.stringify({ since: dateFrom, until: dateTo });
+            const fields = [
+                'name',
+                'status',
+                `insights.time_range(${timeRange}){spend,impressions,clicks,ctr,cpc,cpm,reach,frequency,actions}`
+            ].join(',');
+
+            const url = `https://graph.facebook.com/v19.0/${settings.accountId}/ads` +
+                `?fields=${encodeURIComponent(fields)}&limit=200&access_token=${settings.token}`;
+
+            const resp = await fetch(url);
+            const data = await resp.json();
+
+            if (data.error) {
+                throw new Error(data.error.message || 'API Error');
+            }
+
+            allAds = (data.data || []).map(ad => {
+                const ins = ad.insights?.data?.[0] || {};
+                return {
+                    id: ad.id,
+                    name: ad.name,
+                    status: ad.status,
+                    spend: parseFloat(ins.spend || 0),
+                    impressions: parseInt(ins.impressions || 0),
+                    clicks: parseInt(ins.clicks || 0),
+                    ctr: parseFloat(ins.ctr || 0),
+                    cpc: parseFloat(ins.cpc || 0),
+                    cpm: parseFloat(ins.cpm || 0),
+                    reach: parseInt(ins.reach || 0),
+                    frequency: parseFloat(ins.frequency || 0),
+                };
+            });
+
+            renderDashboard(allAds);
+
+            // Show utility buttons
+            document.getElementById('searchBtn').classList.remove('hidden');
+            document.getElementById('exportBtn').classList.remove('hidden');
+
+            const now = new Date();
+            document.getElementById('lastUpdated').textContent =
+                `อัปเดต ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')} น.`;
+            document.getElementById('lastUpdated').classList.remove('hidden');
+
+        } catch (err) {
+            document.getElementById('adsTable').innerHTML = `
+                <tr><td colspan="9" class="text-center py-16 text-red-400">
+                    <i class="fas fa-exclamation-circle text-4xl mb-3 block"></i>
+                    <p class="font-medium mb-1">เกิดข้อผิดพลาด</p>
+                    <p class="text-xs text-slate-500 max-w-sm mx-auto">${err.message}</p>
+                    <button onclick="openSettings()" class="mt-4 bg-slate-700 hover:bg-slate-600 text-sm px-4 py-1.5 rounded-lg transition">
+                        ตรวจสอบการตั้งค่า
+                    </button>
+                </td></tr>`;
+            document.getElementById('aiSummary').classList.add('hidden');
+            showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+        } finally {
+            btn.innerHTML = '<i class="fas fa-chart-line"></i> วิเคราะห์';
+            btn.disabled = false;
+            btn.classList.remove('opacity-70');
+        }
+    }
+
+    // ==============================
+    // RENDER
+    // ==============================
+    function renderDashboard(ads) {
+        // Totals
+        let totalSpend = 0, totalImpressions = 0, totalClicks = 0, totalReach = 0;
+        ads.forEach(a => {
+            totalSpend += a.spend;
+            totalImpressions += a.impressions;
+            totalClicks += a.clicks;
+            totalReach += a.reach;
+        });
+
+        const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions * 100) : 0;
+        const avgCpc = totalClicks > 0 ? (totalSpend / totalClicks) : 0;
+        const avgCpm = totalImpressions > 0 ? (totalSpend / totalImpressions * 1000) : 0;
+
+        // KPI Cards
+        const kpis = [
+            { label: 'Total Spend', value: '฿' + fmt(totalSpend, 0), sub: '', icon: 'fa-coins', grad: 'from-blue-500/20 to-blue-600/10', border: 'border-blue-500/20', text: 'text-blue-400' },
+            { label: 'Impressions', value: fmtInt(totalImpressions), sub: '', icon: 'fa-eye', grad: 'from-violet-500/20 to-violet-600/10', border: 'border-violet-500/20', text: 'text-violet-400' },
+            { label: 'Clicks', value: fmtInt(totalClicks), sub: '', icon: 'fa-arrow-pointer', grad: 'from-cyan-500/20 to-cyan-600/10', border: 'border-cyan-500/20', text: 'text-cyan-400' },
+            { label: 'Avg CTR', value: fmt(avgCtr) + '%', sub: '', icon: 'fa-percent', grad: 'from-green-500/20 to-green-600/10', border: 'border-green-500/20', text: 'text-green-400' },
+            { label: 'Avg CPC', value: '฿' + fmt(avgCpc), sub: '', icon: 'fa-tag', grad: 'from-orange-500/20 to-orange-600/10', border: 'border-orange-500/20', text: 'text-orange-400' },
+            { label: 'Reach', value: fmtInt(totalReach), sub: '', icon: 'fa-users', grad: 'from-pink-500/20 to-pink-600/10', border: 'border-pink-500/20', text: 'text-pink-400' },
+        ];
+
+        document.getElementById('kpiCards').innerHTML = kpis.map(k => `
+            <div class="bg-gradient-to-br ${k.grad} border ${k.border} rounded-2xl p-4 fade-in">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fas ${k.icon} ${k.text} text-xs"></i>
+                    <span class="text-xs text-slate-400">${k.label}</span>
+                </div>
+                <div class="text-xl font-bold text-white">${k.value}</div>
+            </div>
+        `).join('');
+
+        // AI Summary Banner
+        const stopCount = ads.filter(a => getAIRecommendation(a.ctr).rank === 1).length;
+        const boostCount = ads.filter(a => getAIRecommendation(a.ctr).rank === 4).length;
+        const continueCount = ads.filter(a => getAIRecommendation(a.ctr).rank === 3).length;
+
+        if (ads.length > 0) {
+            document.getElementById('aiSummary').innerHTML = `
+                <div class="bg-gradient-to-r from-slate-800 to-slate-800/50 border border-slate-700 rounded-2xl px-5 py-4 flex flex-wrap gap-4 items-center fade-in">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">🤖</span>
+                        <span class="text-sm font-semibold text-slate-200">AI สรุปภาพรวม</span>
+                    </div>
+                    <div class="flex flex-wrap gap-3 text-sm">
+                        <span class="flex items-center gap-1.5 text-green-400">
+                            <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                            เพิ่มงบได้เลย <strong>${boostCount}</strong> ตัว
+                        </span>
+                        <span class="flex items-center gap-1.5 text-blue-400">
+                            <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                            ต่อได้ <strong>${continueCount}</strong> ตัว
+                        </span>
+                        <span class="flex items-center gap-1.5 text-red-400">
+                            <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                            ควรหยุด <strong>${stopCount}</strong> ตัว
+                        </span>
+                    </div>
+                    ${stopCount > 0 ? `<span class="text-xs text-slate-400">💡 หยุดโฆษณาที่ไม่ดีแล้วโยน Budget ไปให้ตัวที่ CTR สูง</span>` : ''}
+                </div>
+            `;
+            document.getElementById('aiSummary').classList.remove('hidden');
+        }
+
+        // Count badge
+        document.getElementById('adCount').textContent = ads.length + ' รายการ';
+
+        renderTable(ads);
+    }
+
+    function renderTable(ads) {
+        if (ads.length === 0) {
+            document.getElementById('adsTable').innerHTML = `
+                <tr><td colspan="9" class="text-center py-16 text-slate-500">
+                    <i class="fas fa-inbox text-4xl mb-3 block"></i>
+                    ไม่พบโฆษณาในช่วงเวลานี้
+                </td></tr>`;
+            return;
+        }
+
+        // Sort
+        const sorted = [...ads].sort((a, b) => {
+            const va = a[sortField] || 0;
+            const vb = b[sortField] || 0;
+            return sortAsc ? va - vb : vb - va;
+        });
+
+        document.getElementById('adsTable').innerHTML = sorted.map(ad => {
+            const rec = getAIRecommendation(ad.ctr, ad.spend);
+            const ctrColor = ad.ctr >= settings.thresholdGood
+                ? 'text-green-400 font-semibold'
+                : ad.ctr < settings.thresholdBad
+                    ? 'text-red-400'
+                    : 'text-yellow-400';
+
+            return `
+                <tr class="border-t border-slate-700/50 transition">
+                    <td class="px-5 py-3.5">
+                        <div class="font-medium text-sm text-slate-200 max-w-xs truncate" title="${ad.name}">${ad.name}</div>
+                        <div class="text-xs text-slate-600 mt-0.5">ID: ${ad.id}</div>
+                    </td>
+                    <td class="px-4 py-3.5 text-right font-semibold text-slate-200">฿${fmt(ad.spend, 2)}</td>
+                    <td class="px-4 py-3.5 text-right text-slate-400">${fmtInt(ad.impressions)}</td>
+                    <td class="px-4 py-3.5 text-right text-slate-400">${fmtInt(ad.clicks)}</td>
+                    <td class="px-4 py-3.5 text-right ${ctrColor}">${fmt(ad.ctr)}%</td>
+                    <td class="px-4 py-3.5 text-right text-slate-400">฿${fmt(ad.cpc)}</td>
+                    <td class="px-4 py-3.5 text-right text-slate-400">฿${fmt(ad.cpm)}</td>
+                    <td class="px-4 py-3.5 text-center">${getStatusBadge(ad.status)}</td>
+                    <td class="px-4 py-3.5 text-center">
+                        <span class="px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${rec.cls}">${rec.label}</span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // ==============================
+    // SORT & FILTER
+    // ==============================
+    function sortTable(field) {
+        if (sortField === field) { sortAsc = !sortAsc; } else { sortField = field; sortAsc = false; }
+        const filtered = getFilteredAds();
+        renderTable(filtered);
+    }
+
+    function getFilteredAds() {
+        const q = document.getElementById('searchInput').value.toLowerCase();
+        if (!q) return allAds;
+        return allAds.filter(a => a.name.toLowerCase().includes(q));
+    }
+
+    function filterTable() {
+        const filtered = getFilteredAds();
+        document.getElementById('adCount').textContent = filtered.length + ' รายการ';
+        renderTable(filtered);
+    }
+
+    let searchOpen = false;
+    function toggleSearch() {
+        searchOpen = !searchOpen;
+        document.getElementById('searchInput').classList.toggle('hidden', !searchOpen);
+        if (searchOpen) document.getElementById('searchInput').focus();
+    }
+
+    // ==============================
+    // EXPORT CSV
+    // ==============================
+    function exportCSV() {
+        if (!allAds.length) return;
+        const headers = ['Ad Name', 'Status', 'Spend (฿)', 'Impressions', 'Clicks', 'CTR (%)', 'CPC (฿)', 'CPM (฿)', 'Reach', 'AI Recommend'];
+        const rows = allAds.map(a => {
+            const rec = getAIRecommendation(a.ctr);
+            return [
+                `"${a.name.replace(/"/g, '""')}"`,
+                a.status,
+                a.spend.toFixed(2),
+                a.impressions,
+                a.clicks,
+                a.ctr.toFixed(4),
+                a.cpc.toFixed(2),
+                a.cpm.toFixed(2),
+                a.reach,
+                rec.label.replace(/[^\w\s]/g, '')
+            ];
+        });
+
+        const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `meta-ads-${document.getElementById('dateFrom').value}-to-${document.getElementById('dateTo').value}.csv`;
+        a.click();
+        showToast('Export CSV สำเร็จ ✅');
+    }
+
+    // ==============================
+    // TOAST
+    // ==============================
+    function showToast(msg, type = 'success') {
+        const toast = document.getElementById('toast');
+        const icon = document.getElementById('toastIcon');
+        document.getElementById('toastMsg').textContent = msg;
+        icon.className = type === 'error'
+            ? 'fas fa-exclamation-circle text-red-400'
+            : 'fas fa-check-circle text-green-400';
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 3500);
+    }
+
+    // Close settings on backdrop click
+    document.getElementById('settingsModal').addEventListener('click', function(e) {
+        if (e.target === this) closeSettings();
+    });
+</script>
+</body>
+</html>

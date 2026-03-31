@@ -11,94 +11,110 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
 
-  const { ads, dateRange } = req.body;
+  const { ads, dateRange, model } = req.body;
   if (!ads || ads.length === 0) return res.status(400).json({ error: 'No ad data provided' });
 
-  // Build ad summary table for Claude — top 50 by spend only
+  // Model selection — default Haiku, allow Sonnet override
+  const selectedModel = model === 'sonnet' ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001';
+
+  // Build ad summary table — top 25 by spend
   const adTable = ads
     .slice()
     .sort((a, b) => b.spend - a.spend)
     .slice(0, 25)
-    .map(ad => ({
-      name: ad.name,
-      campaign: ad.campaignName || '—',
-      adset: ad.adsetName || '—',
-      spend: ad.spend,
-      messages: ad.conversions,
-      costPerMsg: ad.costPerMsg > 0 ? ad.costPerMsg : null,
-      ctr: ad.ctr,
-      roas: ad.roas > 0 ? ad.roas : null,
-      status: ad.status,
-    }));
+    .map(ad => {
+      const spend = ad.spend;
+      const roas = ad.roas > 0 ? ad.roas : null;
+      const trackedRevenue = roas ? Math.round(spend * roas) : null;
+      const profitLoss = trackedRevenue !== null ? trackedRevenue - spend : null;
+      const expectedRevenue = ad.conversions > 0 ? Math.round(ad.conversions * 2100 * 0.10) : 0;
 
-  const prompt = `คุณเป็น Facebook Ads Analyst ผู้เชี่ยวชาญ วิเคราะห์ข้อมูลโฆษณาต่อไปนี้และให้คำแนะนำที่ actionable
+      return {
+        name: ad.name,
+        campaign: ad.campaignName || '—',
+        adset: ad.adsetName || '—',
+        spend: Math.round(spend),
+        messages: ad.conversions,
+        costPerMsg: ad.costPerMsg > 0 ? Math.round(ad.costPerMsg * 100) / 100 : null,
+        ctr: ad.ctr,
+        roas: roas ? Math.round(roas * 100) / 100 : null,
+        trackedRevenue,
+        profitLoss,
+        expectedRevenue,
+        status: ad.status,
+      };
+    });
+
+  const prompt = `คุณเป็น Senior Facebook Ads Analyst ผู้เชี่ยวชาญด้าน Click-to-Message campaigns สำหรับ B2B SaaS ในไทย
 
 **บริบทธุรกิจ:**
-- สินค้า: RestoSheet (ซอฟต์แวร์บริหารร้านอาหาร)
-- AOV (Average Order Value): ฿2,100
-- Objective: Messages (Click-to-Message)
-- Target margin: 80% → ต้นทุนที่ยอมได้ต่อ 1 sale = ฿420 (฿2,100 × 20%)
-- Close rate จาก message: ~10% → Max CPMsg = ฿42 (฿420 ÷ 10)
-- **การคำนวณกำไร/ขาดทุนต่อ creative:**
-  - Tracked Revenue = Spend × ROAS
-  - Profit/Loss = Tracked Revenue - Spend
-  - Expected Revenue จาก messages = Messages × ฿2,100 × 10% (close rate)
-  - ถ้า Spend > Expected Revenue → ใช้เงินเกินกว่าที่ควรจะได้กลับมา
+- สินค้า: RestoSheet (ซอฟต์แวร์บริหารร้านอาหาร ขายผ่าน Message)
+- AOV: ฿2,100 (ราคาเดียว ไม่มี subscription)
+- Objective: Messages (Click-to-Message → Messenger + IG DM)
+- Target margin: 80% → ต้นทุนที่ยอมได้ต่อ 1 sale = ฿420
+- Close rate จาก message: ~10% → Max CPMsg = ฿42
+- IG message purchases track ไม่ได้ด้วย pixel → ROAS จาก Meta ต่ำกว่าความจริง
+
+**Industry Benchmarks (Thailand 2025-2026):**
+- CPM ไทยเฉลี่ย: ฿120 (ขึ้นทุกปี)
+- CPC ไทยเฉลี่ย: ฿11.50
+- CTR เฉลี่ย B2B SaaS: 1-2% (ถ้า >3% ถือว่าดีมาก)
+- ROAS เฉลี่ย B2B SaaS: 1.6x (mid-ticket target: 3-4x)
+- Message-to-Sale conversion: 10-15% (ดี), 18%+ (ยอดเยี่ยม)
+- Response time ภายใน 1 นาที → conversion สูงขึ้น 21 เท่า
+
+**ข้อมูลที่คำนวณให้แล้ว (ต่อ creative):**
+- trackedRevenue = Spend × ROAS (ยอดขายที่ pixel track ได้)
+- profitLoss = trackedRevenue - Spend (กำไร/ขาดทุนจริง)
+- expectedRevenue = Messages × ฿2,100 × 10% (รายได้ที่คาดหวังจาก messages)
 
 **ช่วงเวลา:** ${dateRange}
 
-**ข้อมูลโฆษณา (เรียงตาม Spend มากไปน้อย):**
+**ข้อมูลโฆษณา:**
 ${JSON.stringify(adTable, null, 2)}
 
-**สิ่งที่ต้องการ:**
-ตอบเป็น JSON ตามรูปแบบนี้เท่านั้น ห้ามมีข้อความอื่น:
+**Decision Matrix — ตัดสินจากหลายปัจจัยรวมกัน:**
+
+🟢 "เพิ่มงบ" เมื่อ:
+- profitLoss > 0 (กำไรจริง) + CPMsg ≤ ฿42 + Messages ≥ 20
+- หรือ ROAS ≥ 5x (override แม้ CPMsg สูง แต่ต้องกำไร)
+- ต้องระบุ: กำไรเท่าไหร่ + ควรเพิ่มที่ campaign ไหน
+
+🟢 "ต่อ" เมื่อ:
+- profitLoss > 0 + CPMsg ระหว่าง ฿42-55
+- หรือ CPMsg ≤ ฿42 + ROAS 1-3x (พอได้ แต่ยังไม่ดีพอจะ scale)
+- หรือ CPMsg สูง แต่ ROAS ≥ 3x (ขายได้จริง ให้ optimize creative)
+
+🟡 "รอดูก่อน" เมื่อ:
+- CPMsg ถูก (≤ ฿42) แต่ ROAS < 1 = ขาดทุน tracked purchases → ห้ามเพิ่มงบเด็ดขาด
+- Messages < 5 + Spend < ฿500 (data ไม่พอ)
+- ROAS null + CPMsg ปานกลาง (ไม่มี signal ชัดเจน)
+
+🔴 "หยุด" เมื่อ:
+- profitLoss < 0 (ขาดทุน) + CPMsg > ฿55
+- Messages < 5 + Spend > ฿500 (จ่ายเยอะแต่ไม่ได้ message)
+- Spend > expectedRevenue × 2 (ใช้เงินเกินกว่าที่ควรได้ 2 เท่า)
+- ROAS < 1 + CPMsg > ฿42 (ขาดทุนทุกมิติ)
+
+**ข้อควรระวังที่ต้องดู:**
+- CTR สูง (>4%) แต่ Messages น้อยเมื่อเทียบกับ clicks → creative misleading
+- CPMsg ถูกมาก แต่ ROAS < 1 → ได้ message ถูกแต่คนไม่ซื้อ (audience ผิด)
+- Spend สูงมากในแคมเปญเดียว → ควรกระจายงบหรือไม่?
+- หลาย creative ใช้ budget รวมกัน → ดูระดับ campaign ด้วย
+
+**สิ่งที่ต้องตอบ (JSON เท่านั้น ห้ามมีข้อความอื่น):**
 {
-  "summary": "สรุปภาพรวม 2-3 ประโยค",
-  "topInsight": "insight สำคัญที่สุด 1 อย่างที่ควรทำทันที",
+  "summary": "สรุปภาพรวม 2-3 ประโยค พร้อม total spend, total tracked revenue, overall profit/loss",
+  "topInsight": "insight สำคัญที่สุด 1 อย่างที่ควรทำทันที พร้อมระบุตัวเลข",
   "ads": [
     {
       "name": "ชื่อโฆษณา",
       "campaign": "ชื่อแคมเปญ",
       "action": "เพิ่มงบ | ต่อ | รอดูก่อน | หยุด",
-      "reason": "เหตุผลสั้นๆ 1 ประโยค"
+      "reason": "CPMsg ฿XX | Revenue ฿XX vs Spend ฿XX = กำไร/ขาดทุน ฿XX | เหตุผล"
     }
   ]
-}
-
-**Decision Matrix — ต้องดูหลายปัจจัยรวมกัน ห้ามดูแค่ CPMsg อย่างเดียว:**
-
-สถานการณ์ 1: CPMsg ต่ำ (≤฿42) + ROAS สูง (≥3x) + Messages เยอะ (≥20) + กำไร (Revenue > Spend)
-→ "เพิ่มงบ" — ดีที่สุด ข้อความถูก ขายได้จริง คุ้มค่า AOV
-
-สถานการณ์ 2: CPMsg ต่ำ (≤฿42) + ROAS ต่ำ (<1) = ขาดทุนจริง (Revenue < Spend)
-→ "รอดูก่อน" — CPMsg ถูกแต่ขาดทุน ห้ามเพิ่มงบ ระบุจำนวนเงินที่ขาดทุนด้วย
-
-สถานการณ์ 3: CPMsg สูง (>฿42) + ROAS สูง (≥3x) + กำไร
-→ "ต่อ" — message แพงแต่ขายได้จริง คุ้ม AOV ควร optimize creative เพื่อลด CPMsg
-
-สถานการณ์ 4: CPMsg สูง (>฿55) + ROAS ต่ำ (<1) หรือ ขาดทุน
-→ "หยุด" — แพงทั้ง CPMsg + ขาดทุน ระบุจำนวนเงินที่เสียไป
-
-สถานการณ์ 5: Messages น้อยมาก (<5) + Spend > ฿500
-→ "หยุด" — ใช้เงิน > ฿500 แต่ได้แค่ <5 messages ไม่คุ้ม AOV
-
-สถานการณ์ 6: Messages น้อยมาก (<5) + Spend < ฿500
-→ "รอดูก่อน" — data ไม่พอ แต่ยังไม่เสียเงินมาก
-
-สถานการณ์ 7: CTR สูง (>4%) แต่ Messages น้อยเมื่อเทียบกับ clicks
-→ ระบุใน reason: creative ดึงดูดคนกดแต่ไม่ convert เป็น message
-
-**ทุกคำแนะนำต้องระบุ:**
-- CPMsg เท่าไหร่
-- Tracked Revenue vs Spend (กำไร/ขาดทุนเท่าไหร่)
-- ถ้ามี ROAS ให้คำนวณ: Spend × ROAS = Revenue → กำไร/ขาดทุน = Revenue - Spend
-
-**กฎเพิ่มเติม:**
-- ROAS จาก Meta Pixel ไม่ครบ (IG message purchases track ไม่ได้) ใช้เป็น signal ไม่ใช่ absolute truth
-- ถ้า ROAS = null/0 → ไม่ลงโทษ ROAS แต่ก็ไม่ได้ bonus ให้ตัดสินจาก CPMsg + volume
-- ถ้า ROAS มีค่าและ < 1 → ห้ามเพิ่มงบเด็ดขาด แม้ CPMsg จะต่ำ
-- ROAS ≥ 5x → เพิ่มงบได้แม้ CPMsg สูง (override)
-- Ad ที่ paused → ระบุว่า paused อยู่ พร้อมแนะนำว่าควร restart หรือไม่`;
+}`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -109,7 +125,7 @@ ${JSON.stringify(adTable, null, 2)}
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: selectedModel,
         max_tokens: 8192,
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -122,6 +138,9 @@ ${JSON.stringify(adTable, null, 2)}
     const jsonStart = text.indexOf('{');
     const jsonEnd = text.lastIndexOf('}') + 1;
     const result = JSON.parse(text.slice(jsonStart, jsonEnd));
+
+    // Add model info to response
+    result.model = selectedModel;
 
     return res.status(200).json(result);
 

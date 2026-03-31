@@ -176,6 +176,10 @@
                 class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-lg shadow-blue-900/30">
                 <i class="fas fa-chart-line"></i> วิเคราะห์
             </button>
+            <select id="aiModel" class="hidden bg-slate-700 border border-slate-600 text-sm text-slate-300 rounded-xl px-3 py-2 focus:ring-violet-500 focus:border-violet-500">
+                <option value="haiku">⚡ Haiku (เร็ว ~฿1)</option>
+                <option value="sonnet">🧠 Sonnet (ละเอียด ~฿10)</option>
+            </select>
             <button onclick="runAIAnalysis()" id="aiBtn"
                 class="hidden bg-violet-600 hover:bg-violet-700 px-5 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-lg shadow-violet-900/30">
                 <i class="fas fa-robot"></i> AI วิเคราะห์
@@ -636,6 +640,7 @@
 
         // Show AI button after data loaded
         document.getElementById('aiBtn').classList.remove('hidden');
+        document.getElementById('aiModel').classList.remove('hidden');
 
         // AI Summary Banner
         const stopCount = ads.filter(a => getAIRecommendation(a.ctr, a.spend, a.costPerMsg).rank === 1).length;
@@ -834,7 +839,8 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ads: allAds,
-                    dateRange: `${dateFrom} ถึง ${dateTo}`
+                    dateRange: `${dateFrom} ถึง ${dateTo}`,
+                    model: document.getElementById('aiModel').value
                 })
             });
 
@@ -852,6 +858,7 @@
                     <div class="flex items-center gap-2 mb-3">
                         <span class="text-lg">🤖</span>
                         <span class="text-sm font-bold text-violet-300">Claude AI วิเคราะห์</span>
+                        <span class="text-xs ${result.model?.includes('sonnet') ? 'text-amber-400' : 'text-slate-500'}">${result.model?.includes('sonnet') ? '🧠 Sonnet' : '⚡ Haiku'}</span>
                         <span class="text-xs text-slate-500 ml-auto">${dateFrom} – ${dateTo}</span>
                     </div>
                     <p class="text-sm text-slate-300 mb-2">${result.summary}</p>

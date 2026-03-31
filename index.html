@@ -866,6 +866,11 @@
                         <span class="text-xs text-violet-400 font-semibold">💡 ทำทันที: </span>
                         <span class="text-sm text-white">${result.topInsight}</span>
                     </div>
+                    ${result.creativeAdvice ? `
+                    <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2.5 mb-4">
+                        <span class="text-xs text-amber-400 font-semibold">🎨 Creative: </span>
+                        <span class="text-sm text-slate-300">${result.creativeAdvice}</span>
+                    </div>` : ''}
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         ${(result.ads || []).map(a => `
                             <div class="flex items-start gap-2 bg-slate-800/60 rounded-lg px-3 py-2">

@@ -367,6 +367,43 @@
         return `<span class="px-2 py-0.5 rounded-full text-xs bg-slate-600/40 text-slate-400">${status}</span>`;
     }
 
+    async function toggleAdStatus(adId, currentStatus) {
+        const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+        const btn = document.getElementById('toggle-' + adId);
+        if (!btn) return;
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            const resp = await fetch(`https://graph.facebook.com/v19.0/${adId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: newStatus,
+                    access_token: settings.token
+                })
+            });
+            const data = await resp.json();
+
+            if (data.error) throw new Error(data.error.message);
+
+            // Update local state
+            const ad = allAds.find(a => a.id === adId);
+            if (ad) ad.status = newStatus;
+
+            showToast(newStatus === 'PAUSED' ? '⏸ หยุดโฆษณาแล้ว' : '▶ เปิดโฆษณาแล้ว');
+            renderTable(getFilteredAds());
+
+        } catch (err) {
+            showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+            btn.disabled = false;
+            btn.innerHTML = currentStatus === 'ACTIVE'
+                ? '<i class="fas fa-pause"></i>'
+                : '<i class="fas fa-play"></i>';
+        }
+    }
+
     function fmt(n, decimals = 2) {
         return parseFloat(n || 0).toLocaleString('th-TH', {
             minimumFractionDigits: decimals,
@@ -572,7 +609,21 @@
                     <td class="px-4 py-3.5 text-right ${ctrColor}">${fmt(ad.ctr)}%</td>
                     <td class="px-4 py-3.5 text-right text-slate-400">฿${fmt(ad.cpc)}</td>
                     <td class="px-4 py-3.5 text-right text-slate-400">฿${fmt(ad.cpm)}</td>
-                    <td class="px-4 py-3.5 text-center">${getStatusBadge(ad.status)}</td>
+                    <td class="px-4 py-3.5 text-center">
+                        <div class="flex items-center justify-center gap-2">
+                            ${getStatusBadge(ad.status)}
+                            ${ad.status !== 'ARCHIVED' ? `
+                            <button id="toggle-${ad.id}"
+                                onclick="toggleAdStatus('${ad.id}', '${ad.status}')"
+                                title="${ad.status === 'ACTIVE' ? 'หยุดโฆษณา' : 'เปิดโฆษณา'}"
+                                class="w-7 h-7 rounded-lg flex items-center justify-center transition text-xs
+                                    ${ad.status === 'ACTIVE'
+                                        ? 'bg-red-500/15 text-red-400 hover:bg-red-500/30 border border-red-500/20'
+                                        : 'bg-green-500/15 text-green-400 hover:bg-green-500/30 border border-green-500/20'}">
+                                <i class="fas ${ad.status === 'ACTIVE' ? 'fa-pause' : 'fa-play'}"></i>
+                            </button>` : ''}
+                        </div>
+                    </td>
                     <td class="px-4 py-3.5 text-center">
                         <span class="px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${rec.cls}">${rec.label}</span>
                     </td>

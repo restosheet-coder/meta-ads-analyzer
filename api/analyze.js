@@ -26,6 +26,8 @@ export default async function handler(req) {
     .slice(0, 50)
     .map(ad => ({
       name: ad.name,
+      campaign: ad.campaignName || '—',
+      adset: ad.adsetName || '—',
       spend: ad.spend,
       messages: ad.conversions,
       costPerMsg: ad.costPerMsg > 0 ? ad.costPerMsg : null,
@@ -56,6 +58,7 @@ ${JSON.stringify(adTable, null, 2)}
   "ads": [
     {
       "name": "ชื่อโฆษณา",
+      "campaign": "ชื่อแคมเปญ",
       "action": "เพิ่มงบ | ต่อ | รอดูก่อน | หยุด",
       "reason": "เหตุผลสั้นๆ 1 ประโยค"
     }

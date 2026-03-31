@@ -19,18 +19,20 @@ export default async function handler(req) {
     });
   }
 
-  // Build ad summary table for Claude
-  const adTable = ads.map(ad => ({
-    name: ad.name,
-    spend: ad.spend,
-    messages: ad.conversions,
-    costPerMsg: ad.costPerMsg > 0 ? ad.costPerMsg : null,
-    ctr: ad.ctr,
-    cpc: ad.cpc,
-    cpm: ad.cpm,
-    roas: ad.roas > 0 ? ad.roas : null,
-    status: ad.status,
-  }));
+  // Build ad summary table for Claude — top 50 by spend only
+  const adTable = ads
+    .slice()
+    .sort((a, b) => b.spend - a.spend)
+    .slice(0, 50)
+    .map(ad => ({
+      name: ad.name,
+      spend: ad.spend,
+      messages: ad.conversions,
+      costPerMsg: ad.costPerMsg > 0 ? ad.costPerMsg : null,
+      ctr: ad.ctr,
+      roas: ad.roas > 0 ? ad.roas : null,
+      status: ad.status,
+    }));
 
   const prompt = `คุณเป็น Facebook Ads Analyst ผู้เชี่ยวชาญ วิเคราะห์ข้อมูลโฆษณาต่อไปนี้และให้คำแนะนำที่ actionable
 
@@ -72,7 +74,7 @@ ${JSON.stringify(adTable, null, 2)}
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2000,
+        max_tokens: 4096,
         messages: [{ role: 'user', content: prompt }],
       }),
     });

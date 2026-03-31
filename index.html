@@ -53,24 +53,48 @@
             </div>
 
             <div class="border-t border-slate-700 pt-4">
-                <p class="text-xs text-slate-400 font-medium mb-3">เกณฑ์ AI แนะนำ (ปรับตามธุรกิจของคุณ)</p>
-                <div class="grid grid-cols-2 gap-3">
+                <p class="text-xs text-slate-400 font-medium mb-1">เกณฑ์ AI แนะนำ — ใช้ <strong class="text-white">Cost per Message (฿)</strong></p>
+                <p class="text-xs text-slate-500 mb-3">คำนวณจาก: ราคาขาย × (1 - margin%) × close rate</p>
+                <div class="grid grid-cols-3 gap-3">
                     <div>
-                        <label class="text-xs text-slate-400 mb-1 block">CTR "เพิ่มงบ" ≥ (%)</label>
-                        <input id="thresholdGood" type="number" value="2" step="0.1" min="0"
+                        <label class="text-xs text-green-400 mb-1 block">🚀 เพิ่มงบ ≤ (฿)</label>
+                        <input id="thresholdS" type="number" value="35" step="1" min="0"
                             class="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition">
                     </div>
                     <div>
-                        <label class="text-xs text-slate-400 mb-1 block">CTR "หยุด" < (%)</label>
-                        <input id="thresholdBad" type="number" value="0.5" step="0.1" min="0"
-                            class="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 transition">
+                        <label class="text-xs text-blue-400 mb-1 block">✅ ต่อ ≤ (฿)</label>
+                        <input id="thresholdA" type="number" value="42" step="1" min="0"
+                            class="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                    </div>
+                    <div>
+                        <label class="text-xs text-yellow-400 mb-1 block">⏳ รอดู ≤ (฿)</label>
+                        <input id="thresholdB" type="number" value="55" step="1" min="0"
+                            class="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 transition">
                     </div>
                 </div>
                 <div class="mt-2 text-xs text-slate-500 flex gap-3 flex-wrap">
-                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span>CTR ≥ เกณฑ์ → เพิ่มงบ</span>
-                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>ตรงกลาง → ต่อ</span>
-                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-yellow-500 inline-block"></span>ใกล้เกณฑ์ → รอดูก่อน</span>
-                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span>CTR < เกณฑ์ → หยุด</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span>≤ ฿35 → เพิ่มงบ</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>≤ ฿42 → ต่อ</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-yellow-500 inline-block"></span>≤ ฿55 → รอดูก่อน</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span>> ฿55 → หยุด</span>
+                </div>
+                <p class="text-xs text-slate-600 mt-2">💡 เกณฑ์นี้คำนวณจากข้อมูลจริง: ขาย ฿2,100 / margin 80% / close rate 10%</p>
+
+                <div class="border-t border-slate-700 pt-3 mt-3">
+                    <p class="text-xs text-slate-400 font-medium mb-2">ROAS Override — ถ้า ROAS ดีพอ ให้ผ่านแม้ CPMsg จะแพง</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs text-green-400 mb-1 block">🚀 เพิ่มงบ ถ้า ROAS ≥ (x)</label>
+                            <input id="roasBoost" type="number" value="5" step="0.5" min="0"
+                                class="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 transition">
+                        </div>
+                        <div>
+                            <label class="text-xs text-blue-400 mb-1 block">✅ ต่อ ถ้า ROAS ≥ (x)</label>
+                            <input id="roasOk" type="number" value="3" step="0.5" min="0"
+                                class="w-full bg-slate-700 border border-slate-600 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-600 mt-1">ROAS จาก Meta pixel อาจไม่ครบ (Instagram Message ไม่นับ) ใช้เป็น signal เสริมเท่านั้น</p>
                 </div>
             </div>
         </div>
@@ -151,6 +175,10 @@
             <button onclick="analyzeAds()" id="analyzeBtn"
                 class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-lg shadow-blue-900/30">
                 <i class="fas fa-chart-line"></i> วิเคราะห์
+            </button>
+            <button onclick="runAIAnalysis()" id="aiBtn"
+                class="hidden bg-violet-600 hover:bg-violet-700 px-5 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-lg shadow-violet-900/30">
+                <i class="fas fa-robot"></i> AI วิเคราะห์
             </button>
         </div>
     </div>
@@ -272,8 +300,11 @@
     let settings = {
         token: localStorage.getItem('meta_token') || '',
         accountId: localStorage.getItem('meta_account_id') || '',
-        thresholdGood: parseFloat(localStorage.getItem('threshold_good') || '2'),
-        thresholdBad: parseFloat(localStorage.getItem('threshold_bad') || '0.5'),
+        thresholdS: parseFloat(localStorage.getItem('threshold_s') || '35'),
+        thresholdA: parseFloat(localStorage.getItem('threshold_a') || '42'),
+        thresholdB: parseFloat(localStorage.getItem('threshold_b') || '55'),
+        roasBoost: parseFloat(localStorage.getItem('roas_boost') || '5'),
+        roasOk: parseFloat(localStorage.getItem('roas_ok') || '3'),
     };
 
     let allAds = [];
@@ -297,8 +328,11 @@
     function openSettings() {
         document.getElementById('accessToken').value = settings.token;
         document.getElementById('adAccountId').value = settings.accountId;
-        document.getElementById('thresholdGood').value = settings.thresholdGood;
-        document.getElementById('thresholdBad').value = settings.thresholdBad;
+        document.getElementById('thresholdS').value = settings.thresholdS;
+        document.getElementById('thresholdA').value = settings.thresholdA;
+        document.getElementById('thresholdB').value = settings.thresholdB;
+        document.getElementById('roasBoost').value = settings.roasBoost;
+        document.getElementById('roasOk').value = settings.roasOk;
         document.getElementById('settingsModal').classList.remove('hidden');
     }
 
@@ -317,13 +351,19 @@
 
         settings.token = token;
         settings.accountId = accountId.startsWith('act_') ? accountId : 'act_' + accountId;
-        settings.thresholdGood = parseFloat(document.getElementById('thresholdGood').value);
-        settings.thresholdBad = parseFloat(document.getElementById('thresholdBad').value);
+        settings.thresholdS = parseFloat(document.getElementById('thresholdS').value);
+        settings.thresholdA = parseFloat(document.getElementById('thresholdA').value);
+        settings.thresholdB = parseFloat(document.getElementById('thresholdB').value);
+        settings.roasBoost = parseFloat(document.getElementById('roasBoost').value);
+        settings.roasOk = parseFloat(document.getElementById('roasOk').value);
 
         localStorage.setItem('meta_token', settings.token);
         localStorage.setItem('meta_account_id', settings.accountId);
-        localStorage.setItem('threshold_good', settings.thresholdGood);
-        localStorage.setItem('threshold_bad', settings.thresholdBad);
+        localStorage.setItem('threshold_s', settings.thresholdS);
+        localStorage.setItem('threshold_a', settings.thresholdA);
+        localStorage.setItem('threshold_b', settings.thresholdB);
+        localStorage.setItem('roas_boost', settings.roasBoost);
+        localStorage.setItem('roas_ok', settings.roasOk);
 
         closeSettings();
         showToast('บันทึกการตั้งค่าแล้ว ✅');
@@ -351,18 +391,32 @@
     // ==============================
     // AI RECOMMENDATION
     // ==============================
-    function getAIRecommendation(ctr, spend) {
-        const ctrNum = parseFloat(ctr || 0);
-        const mid = (settings.thresholdGood + settings.thresholdBad) / 2;
+    function getAIRecommendation(ctr, spend, costPerMsg, roas) {
+        const cpm = parseFloat(costPerMsg || 0);
+        const roasNum = parseFloat(roas || 0);
 
-        if (ctrNum >= settings.thresholdGood) {
-            return { label: '🚀 เพิ่มงบ', cls: 'bg-green-500/15 text-green-400 border border-green-500/30', rank: 4 };
-        } else if (ctrNum >= mid) {
-            return { label: '✅ ต่อ', cls: 'bg-blue-500/15 text-blue-400 border border-blue-500/30', rank: 3 };
-        } else if (ctrNum >= settings.thresholdBad) {
-            return { label: '⏳ รอดูก่อน', cls: 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30', rank: 2 };
+        // ROAS override — ถ้า ROAS ดีมาก ถือว่าคุ้มแม้ CPMsg จะแพง
+        if (roasNum >= settings.roasBoost) {
+            return { label: '🚀 เพิ่มงบ', cls: 'bg-green-500/15 text-green-400 border border-green-500/30', rank: 4, note: `ROAS ${roasNum.toFixed(1)}x` };
+        }
+        if (roasNum >= settings.roasOk && cpm > settings.thresholdB) {
+            return { label: '✅ ต่อ', cls: 'bg-blue-500/15 text-blue-400 border border-blue-500/30', rank: 3, note: `ROAS ${roasNum.toFixed(1)}x` };
+        }
+
+        // Primary: Cost per Message
+        if (cpm > 0 && cpm <= settings.thresholdS) {
+            return { label: '🚀 เพิ่มงบ', cls: 'bg-green-500/15 text-green-400 border border-green-500/30', rank: 4, note: `฿${cpm.toFixed(0)}/msg` };
+        } else if (cpm > 0 && cpm <= settings.thresholdA) {
+            return { label: '✅ ต่อ', cls: 'bg-blue-500/15 text-blue-400 border border-blue-500/30', rank: 3, note: `฿${cpm.toFixed(0)}/msg` };
+        } else if (cpm > 0 && cpm <= settings.thresholdB) {
+            return { label: '⏳ รอดูก่อน', cls: 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30', rank: 2, note: `฿${cpm.toFixed(0)}/msg` };
+        } else if (cpm > settings.thresholdB) {
+            return { label: '🛑 หยุด', cls: 'bg-red-500/15 text-red-400 border border-red-500/30', rank: 1, note: `฿${cpm.toFixed(0)}/msg` };
         } else {
-            return { label: '🛑 หยุด', cls: 'bg-red-500/15 text-red-400 border border-red-500/30', rank: 1 };
+            // No messages yet — fallback to CTR
+            const ctrNum = parseFloat(ctr || 0);
+            if (ctrNum >= 1.5) return { label: '👀 ดูต่อ', cls: 'bg-slate-500/15 text-slate-400 border border-slate-500/30', rank: 2, note: 'ยังไม่มี Msg' };
+            return { label: '⚠️ ไม่มี Msg', cls: 'bg-slate-600/15 text-slate-500 border border-slate-600/30', rank: 1, note: '' };
         }
     }
 
@@ -443,7 +497,7 @@
             const fields = [
                 'name',
                 'status',
-                `insights.time_range(${timeRange}){spend,impressions,clicks,ctr,cpc,cpm,reach,frequency,actions,cost_per_action_type}`
+                `insights.time_range(${timeRange}){spend,impressions,clicks,ctr,cpc,cpm,reach,frequency,actions,cost_per_action_type,purchase_roas}`
             ].join(',');
 
             const url = `https://graph.facebook.com/v19.0/${settings.accountId}/ads` +
@@ -480,6 +534,12 @@
                     ? parseFloat(msgCost.value || 0)
                     : conversions > 0 ? spend / conversions : 0;
 
+                // ROAS from Meta pixel
+                const roasData = ins.purchase_roas;
+                const roas = roasData && roasData.length > 0
+                    ? parseFloat(roasData[0].value || 0)
+                    : 0;
+
                 return {
                     id: ad.id,
                     name: ad.name,
@@ -494,6 +554,7 @@
                     frequency: parseFloat(ins.frequency || 0),
                     conversions,
                     costPerMsg,
+                    roas,
                 };
             });
 
@@ -551,7 +612,8 @@
             { label: 'Clicks', value: fmtInt(totalClicks), sub: '', icon: 'fa-arrow-pointer', grad: 'from-cyan-500/20 to-cyan-600/10', border: 'border-cyan-500/20', text: 'text-cyan-400' },
             { label: 'Avg CTR', value: fmt(avgCtr) + '%', sub: '', icon: 'fa-percent', grad: 'from-green-500/20 to-green-600/10', border: 'border-green-500/20', text: 'text-green-400' },
             { label: 'Avg CPC', value: '฿' + fmt(avgCpc), sub: '', icon: 'fa-tag', grad: 'from-orange-500/20 to-orange-600/10', border: 'border-orange-500/20', text: 'text-orange-400' },
-            { label: 'Reach', value: fmtInt(totalReach), sub: '', icon: 'fa-users', grad: 'from-pink-500/20 to-pink-600/10', border: 'border-pink-500/20', text: 'text-pink-400' },
+            { label: 'Messages', value: fmtInt(totalMsg), sub: '', icon: 'fa-comment', grad: 'from-pink-500/20 to-pink-600/10', border: 'border-pink-500/20', text: 'text-pink-400' },
+            { label: 'Avg Cost/Msg', value: avgCostPerMsg > 0 ? '฿' + fmt(avgCostPerMsg) : '—', sub: '', icon: 'fa-envelope-open-text', grad: avgCostPerMsg > 0 && avgCostPerMsg <= settings.thresholdA ? 'from-green-500/20 to-green-600/10' : 'from-red-500/20 to-red-600/10', border: avgCostPerMsg > 0 && avgCostPerMsg <= settings.thresholdA ? 'border-green-500/20' : 'border-red-500/20', text: avgCostPerMsg > 0 && avgCostPerMsg <= settings.thresholdA ? 'text-green-400' : 'text-red-400' },
         ];
 
         document.getElementById('kpiCards').innerHTML = kpis.map(k => `
@@ -564,10 +626,15 @@
             </div>
         `).join('');
 
+        // Show AI button after data loaded
+        document.getElementById('aiBtn').classList.remove('hidden');
+
         // AI Summary Banner
-        const stopCount = ads.filter(a => getAIRecommendation(a.ctr).rank === 1).length;
-        const boostCount = ads.filter(a => getAIRecommendation(a.ctr).rank === 4).length;
-        const continueCount = ads.filter(a => getAIRecommendation(a.ctr).rank === 3).length;
+        const stopCount = ads.filter(a => getAIRecommendation(a.ctr, a.spend, a.costPerMsg).rank === 1).length;
+        const boostCount = ads.filter(a => getAIRecommendation(a.ctr, a.spend, a.costPerMsg).rank === 4).length;
+        const continueCount = ads.filter(a => getAIRecommendation(a.ctr, a.spend, a.costPerMsg).rank === 3).length;
+        const totalMsg = ads.reduce((s, a) => s + (a.conversions || 0), 0);
+        const avgCostPerMsg = totalMsg > 0 ? totalSpend / totalMsg : 0;
 
         if (ads.length > 0) {
             document.getElementById('aiSummary').innerHTML = `
@@ -590,7 +657,7 @@
                             ควรหยุด <strong>${stopCount}</strong> ตัว
                         </span>
                     </div>
-                    ${stopCount > 0 ? `<span class="text-xs text-slate-400">💡 หยุดโฆษณาที่ไม่ดีแล้วโยน Budget ไปให้ตัวที่ CTR สูง</span>` : ''}
+                    ${stopCount > 0 ? `<span class="text-xs text-slate-400">💡 หยุดตัวที่ CPMsg > ฿${settings.thresholdB} แล้วโยน Budget ให้ตัวที่ CPMsg ≤ ฿${settings.thresholdS}</span>` : ''}
                 </div>
             `;
             document.getElementById('aiSummary').classList.remove('hidden');
@@ -620,10 +687,10 @@
         });
 
         document.getElementById('adsTable').innerHTML = sorted.map(ad => {
-            const rec = getAIRecommendation(ad.ctr, ad.spend);
-            const ctrColor = ad.ctr >= settings.thresholdGood
+            const rec = getAIRecommendation(ad.ctr, ad.spend, ad.costPerMsg, ad.roas);
+            const ctrColor = ad.ctr >= 1.5
                 ? 'text-green-400 font-semibold'
-                : ad.ctr < settings.thresholdBad
+                : ad.ctr < 1.0
                     ? 'text-red-400'
                     : 'text-yellow-400';
 
@@ -657,7 +724,10 @@
                         </div>
                     </td>
                     <td class="px-4 py-3.5 text-center">
-                        <span class="px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${rec.cls}">${rec.label}</span>
+                        <div class="flex flex-col items-center gap-0.5">
+                            <span class="px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${rec.cls}">${rec.label}</span>
+                            ${rec.note ? `<span class="text-xs text-slate-600">${rec.note}</span>` : ''}
+                        </div>
                     </td>
                 </tr>
             `;
@@ -736,6 +806,74 @@
             : 'fas fa-check-circle text-green-400';
         toast.classList.remove('hidden');
         setTimeout(() => toast.classList.add('hidden'), 3500);
+    }
+
+    // ==============================
+    // REAL AI ANALYSIS
+    // ==============================
+    async function runAIAnalysis() {
+        if (!allAds.length) return;
+
+        const btn = document.getElementById('aiBtn');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI กำลังคิด...';
+        btn.disabled = true;
+
+        const dateFrom = document.getElementById('dateFrom').value;
+        const dateTo = document.getElementById('dateTo').value;
+
+        try {
+            const resp = await fetch('/api/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ads: allAds,
+                    dateRange: `${dateFrom} ถึง ${dateTo}`
+                })
+            });
+
+            const result = await resp.json();
+            if (result.error) throw new Error(result.error);
+
+            // Show AI result banner
+            const actionColor = {
+                'เพิ่มงบ': 'text-green-400', 'ต่อ': 'text-blue-400',
+                'รอดูก่อน': 'text-yellow-400', 'หยุด': 'text-red-400'
+            };
+
+            document.getElementById('aiSummary').innerHTML = `
+                <div class="bg-gradient-to-r from-violet-900/30 to-slate-800/50 border border-violet-500/20 rounded-2xl px-5 py-4 fade-in">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-lg">🤖</span>
+                        <span class="text-sm font-bold text-violet-300">Claude AI วิเคราะห์</span>
+                        <span class="text-xs text-slate-500 ml-auto">${dateFrom} – ${dateTo}</span>
+                    </div>
+                    <p class="text-sm text-slate-300 mb-2">${result.summary}</p>
+                    <div class="bg-violet-500/10 border border-violet-500/20 rounded-xl px-4 py-2.5 mb-4">
+                        <span class="text-xs text-violet-400 font-semibold">💡 ทำทันที: </span>
+                        <span class="text-sm text-white">${result.topInsight}</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        ${(result.ads || []).map(a => `
+                            <div class="flex items-start gap-2 bg-slate-800/60 rounded-lg px-3 py-2">
+                                <span class="text-xs font-bold ${actionColor[a.action] || 'text-slate-400'} whitespace-nowrap mt-0.5">${a.action}</span>
+                                <div>
+                                    <p class="text-xs font-medium text-slate-200">${a.name}</p>
+                                    <p class="text-xs text-slate-500">${a.reason}</p>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            document.getElementById('aiSummary').classList.remove('hidden');
+            showToast('AI วิเคราะห์เสร็จแล้ว ✅');
+
+        } catch (err) {
+            showToast('AI Error: ' + err.message, 'error');
+        } finally {
+            btn.innerHTML = '<i class="fas fa-robot"></i> AI วิเคราะห์';
+            btn.disabled = false;
+        }
     }
 
     // Close settings on backdrop click

@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   const adTable = ads
     .slice()
     .sort((a, b) => b.spend - a.spend)
-    .slice(0, 50)
+    .slice(0, 25)
     .map(ad => ({
       name: ad.name,
       campaign: ad.campaignName || '—',
@@ -72,7 +72,7 @@ ${JSON.stringify(adTable, null, 2)}
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4096,
+        max_tokens: 8192,
         messages: [{ role: 'user', content: prompt }],
       }),
     });

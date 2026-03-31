@@ -228,6 +228,12 @@
                         <th class="text-right px-4 py-3 text-xs text-slate-400 font-medium sortable" onclick="sortTable('cpm')">
                             CPM ฿ <i class="fas fa-sort ml-1 opacity-40"></i>
                         </th>
+                        <th class="text-right px-4 py-3 text-xs text-slate-400 font-medium sortable" onclick="sortTable('conversions')">
+                            Conv. <i class="fas fa-sort ml-1 opacity-40"></i>
+                        </th>
+                        <th class="text-right px-4 py-3 text-xs text-slate-400 font-medium sortable" onclick="sortTable('costPerMsg')">
+                            Cost/Msg ฿ <i class="fas fa-sort ml-1 opacity-40"></i>
+                        </th>
                         <th class="text-center px-4 py-3 text-xs text-slate-400 font-medium">สถานะ</th>
                         <th class="text-center px-4 py-3 text-xs text-slate-400 font-medium">AI แนะนำ</th>
                     </tr>
@@ -437,7 +443,7 @@
             const fields = [
                 'name',
                 'status',
-                `insights.time_range(${timeRange}){spend,impressions,clicks,ctr,cpc,cpm,reach,frequency,actions}`
+                `insights.time_range(${timeRange}){spend,impressions,clicks,ctr,cpc,cpm,reach,frequency,actions,cost_per_action_type}`
             ].join(',');
 
             const url = `https://graph.facebook.com/v19.0/${settings.accountId}/ads` +
@@ -452,11 +458,33 @@
 
             allAds = (data.data || []).map(ad => {
                 const ins = ad.insights?.data?.[0] || {};
+                const actions = ins.actions || [];
+                const costPerAction = ins.cost_per_action_type || [];
+
+                // Count conversions: messaging conversations started
+                const msgAction = actions.find(a =>
+                    a.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
+                    a.action_type === 'messaging_first_reply' ||
+                    a.action_type === 'onsite_conversion.total_messaging_connection'
+                );
+                const conversions = msgAction ? parseInt(msgAction.value || 0) : 0;
+
+                // Cost per message
+                const msgCost = costPerAction.find(a =>
+                    a.action_type === 'onsite_conversion.messaging_conversation_started_7d' ||
+                    a.action_type === 'messaging_first_reply' ||
+                    a.action_type === 'onsite_conversion.total_messaging_connection'
+                );
+                const spend = parseFloat(ins.spend || 0);
+                const costPerMsg = msgCost
+                    ? parseFloat(msgCost.value || 0)
+                    : conversions > 0 ? spend / conversions : 0;
+
                 return {
                     id: ad.id,
                     name: ad.name,
                     status: ad.status,
-                    spend: parseFloat(ins.spend || 0),
+                    spend,
                     impressions: parseInt(ins.impressions || 0),
                     clicks: parseInt(ins.clicks || 0),
                     ctr: parseFloat(ins.ctr || 0),
@@ -464,6 +492,8 @@
                     cpm: parseFloat(ins.cpm || 0),
                     reach: parseInt(ins.reach || 0),
                     frequency: parseFloat(ins.frequency || 0),
+                    conversions,
+                    costPerMsg,
                 };
             });
 
@@ -609,6 +639,8 @@
                     <td class="px-4 py-3.5 text-right ${ctrColor}">${fmt(ad.ctr)}%</td>
                     <td class="px-4 py-3.5 text-right text-slate-400">฿${fmt(ad.cpc)}</td>
                     <td class="px-4 py-3.5 text-right text-slate-400">฿${fmt(ad.cpm)}</td>
+                    <td class="px-4 py-3.5 text-right font-semibold ${ad.conversions > 0 ? 'text-purple-400' : 'text-slate-600'}">${ad.conversions > 0 ? fmtInt(ad.conversions) : '—'}</td>
+                    <td class="px-4 py-3.5 text-right ${ad.costPerMsg > 0 ? 'text-slate-300' : 'text-slate-600'}">${ad.costPerMsg > 0 ? '฿' + fmt(ad.costPerMsg) : '—'}</td>
                     <td class="px-4 py-3.5 text-center">
                         <div class="flex items-center justify-center gap-2">
                             ${getStatusBadge(ad.status)}

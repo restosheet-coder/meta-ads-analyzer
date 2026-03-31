@@ -497,6 +497,9 @@
             const fields = [
                 'name',
                 'status',
+                'campaign_id',
+                'campaign{name}',
+                'adset{name}',
                 `insights.time_range(${timeRange}){spend,impressions,clicks,ctr,cpc,cpm,reach,frequency,actions,cost_per_action_type,purchase_roas}`
             ].join(',');
 
@@ -543,6 +546,8 @@
                 return {
                     id: ad.id,
                     name: ad.name,
+                    campaignName: ad.campaign?.name || '',
+                    adsetName: ad.adset?.name || '',
                     status: ad.status,
                     spend,
                     impressions: parseInt(ins.impressions || 0),
@@ -699,7 +704,8 @@
                 <tr class="border-t border-slate-700/50 transition">
                     <td class="px-5 py-3.5">
                         <div class="font-medium text-sm text-slate-200 max-w-xs truncate" title="${ad.name}">${ad.name}</div>
-                        <div class="text-xs text-slate-600 mt-0.5">ID: ${ad.id}</div>
+                        ${ad.campaignName ? `<div class="text-xs text-slate-500 mt-0.5 truncate max-w-xs" title="${ad.campaignName}">📁 ${ad.campaignName}</div>` : ''}
+                        ${ad.adsetName ? `<div class="text-xs text-slate-600 truncate max-w-xs" title="${ad.adsetName}">└ ${ad.adsetName}</div>` : ''}
                     </td>
                     <td class="px-4 py-3.5 text-right font-semibold text-slate-200">฿${fmt(ad.spend, 2)}</td>
                     <td class="px-4 py-3.5 text-right text-slate-400">${fmtInt(ad.impressions)}</td>

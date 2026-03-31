@@ -1,23 +1,18 @@
-export const config = { runtime: 'edge' };
+export const config = { maxDuration: 60 };
 
-export default async function handler(req) {
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
-  }
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Content-Type', 'application/json');
+
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: 'API key not configured' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' }
-    });
-  }
+  if (!apiKey) return res.status(500).json({ error: 'API key not configured' });
 
-  const { ads, dateRange } = await req.json();
-  if (!ads || ads.length === 0) {
-    return new Response(JSON.stringify({ error: 'No ad data provided' }), {
-      status: 400, headers: { 'Content-Type': 'application/json' }
-    });
-  }
+  const { ads, dateRange } = req.body;
+  if (!ads || ads.length === 0) return res.status(400).json({ error: 'No ad data provided' });
 
   // Build ad summary table for Claude — top 50 by spend only
   const adTable = ads
@@ -90,18 +85,9 @@ ${JSON.stringify(adTable, null, 2)}
     const jsonEnd = text.lastIndexOf('}') + 1;
     const result = JSON.parse(text.slice(jsonStart, jsonEnd));
 
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
+    return res.status(200).json(result);
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(500).json({ error: err.message });
   }
 }

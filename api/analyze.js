@@ -35,10 +35,15 @@ export default async function handler(req, res) {
 
 **บริบทธุรกิจ:**
 - สินค้า: RestoSheet (ซอฟต์แวร์บริหารร้านอาหาร)
-- ราคาขายเฉลี่ย: ฿2,100
+- AOV (Average Order Value): ฿2,100
 - Objective: Messages (Click-to-Message)
-- Target margin: 80%
-- Max Cost per Message เพื่อ breakeven: ~฿42 (สมมติ close rate 10%)
+- Target margin: 80% → ต้นทุนที่ยอมได้ต่อ 1 sale = ฿420 (฿2,100 × 20%)
+- Close rate จาก message: ~10% → Max CPMsg = ฿42 (฿420 ÷ 10)
+- **การคำนวณกำไร/ขาดทุนต่อ creative:**
+  - Tracked Revenue = Spend × ROAS
+  - Profit/Loss = Tracked Revenue - Spend
+  - Expected Revenue จาก messages = Messages × ฿2,100 × 10% (close rate)
+  - ถ้า Spend > Expected Revenue → ใช้เงินเกินกว่าที่ควรจะได้กลับมา
 
 **ช่วงเวลา:** ${dateRange}
 
@@ -60,7 +65,40 @@ ${JSON.stringify(adTable, null, 2)}
   ]
 }
 
-วิเคราะห์เชิงลึก พิจารณา: CPMsg เทียบกับ threshold, ROAS, CTR trend, และ budget allocation`;
+**Decision Matrix — ต้องดูหลายปัจจัยรวมกัน ห้ามดูแค่ CPMsg อย่างเดียว:**
+
+สถานการณ์ 1: CPMsg ต่ำ (≤฿42) + ROAS สูง (≥3x) + Messages เยอะ (≥20) + กำไร (Revenue > Spend)
+→ "เพิ่มงบ" — ดีที่สุด ข้อความถูก ขายได้จริง คุ้มค่า AOV
+
+สถานการณ์ 2: CPMsg ต่ำ (≤฿42) + ROAS ต่ำ (<1) = ขาดทุนจริง (Revenue < Spend)
+→ "รอดูก่อน" — CPMsg ถูกแต่ขาดทุน ห้ามเพิ่มงบ ระบุจำนวนเงินที่ขาดทุนด้วย
+
+สถานการณ์ 3: CPMsg สูง (>฿42) + ROAS สูง (≥3x) + กำไร
+→ "ต่อ" — message แพงแต่ขายได้จริง คุ้ม AOV ควร optimize creative เพื่อลด CPMsg
+
+สถานการณ์ 4: CPMsg สูง (>฿55) + ROAS ต่ำ (<1) หรือ ขาดทุน
+→ "หยุด" — แพงทั้ง CPMsg + ขาดทุน ระบุจำนวนเงินที่เสียไป
+
+สถานการณ์ 5: Messages น้อยมาก (<5) + Spend > ฿500
+→ "หยุด" — ใช้เงิน > ฿500 แต่ได้แค่ <5 messages ไม่คุ้ม AOV
+
+สถานการณ์ 6: Messages น้อยมาก (<5) + Spend < ฿500
+→ "รอดูก่อน" — data ไม่พอ แต่ยังไม่เสียเงินมาก
+
+สถานการณ์ 7: CTR สูง (>4%) แต่ Messages น้อยเมื่อเทียบกับ clicks
+→ ระบุใน reason: creative ดึงดูดคนกดแต่ไม่ convert เป็น message
+
+**ทุกคำแนะนำต้องระบุ:**
+- CPMsg เท่าไหร่
+- Tracked Revenue vs Spend (กำไร/ขาดทุนเท่าไหร่)
+- ถ้ามี ROAS ให้คำนวณ: Spend × ROAS = Revenue → กำไร/ขาดทุน = Revenue - Spend
+
+**กฎเพิ่มเติม:**
+- ROAS จาก Meta Pixel ไม่ครบ (IG message purchases track ไม่ได้) ใช้เป็น signal ไม่ใช่ absolute truth
+- ถ้า ROAS = null/0 → ไม่ลงโทษ ROAS แต่ก็ไม่ได้ bonus ให้ตัดสินจาก CPMsg + volume
+- ถ้า ROAS มีค่าและ < 1 → ห้ามเพิ่มงบเด็ดขาด แม้ CPMsg จะต่ำ
+- ROAS ≥ 5x → เพิ่มงบได้แม้ CPMsg สูง (override)
+- Ad ที่ paused → ระบุว่า paused อยู่ พร้อมแนะนำว่าควร restart หรือไม่`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {

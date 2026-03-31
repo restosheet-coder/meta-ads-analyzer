@@ -605,6 +605,9 @@
         const avgCpc = totalClicks > 0 ? (totalSpend / totalClicks) : 0;
         const avgCpm = totalImpressions > 0 ? (totalSpend / totalImpressions * 1000) : 0;
 
+        const totalMsg = ads.reduce((s, a) => s + (a.conversions || 0), 0);
+        const avgCostPerMsg = totalMsg > 0 ? totalSpend / totalMsg : 0;
+
         // KPI Cards
         const kpis = [
             { label: 'Total Spend', value: '฿' + fmt(totalSpend, 0), sub: '', icon: 'fa-coins', grad: 'from-blue-500/20 to-blue-600/10', border: 'border-blue-500/20', text: 'text-blue-400' },
@@ -633,8 +636,6 @@
         const stopCount = ads.filter(a => getAIRecommendation(a.ctr, a.spend, a.costPerMsg).rank === 1).length;
         const boostCount = ads.filter(a => getAIRecommendation(a.ctr, a.spend, a.costPerMsg).rank === 4).length;
         const continueCount = ads.filter(a => getAIRecommendation(a.ctr, a.spend, a.costPerMsg).rank === 3).length;
-        const totalMsg = ads.reduce((s, a) => s + (a.conversions || 0), 0);
-        const avgCostPerMsg = totalMsg > 0 ? totalSpend / totalMsg : 0;
 
         if (ads.length > 0) {
             document.getElementById('aiSummary').innerHTML = `
